@@ -26,10 +26,10 @@ const addUser = async (
   res: Response<SignUpResponseBodyType | GenericResponseType>,
 ) => {
   try {
-    const { name, email, password, mobileNo, role } = req.body;
-    //  console.log(req.body);
+    const { name, email, password, mobileNo, role, profileUrl } = req.body;
+     console.log(req.body);
 
-    if (!name || !email || !password || !mobileNo) {
+    if (!name || !email || !password || !mobileNo || !profileUrl) {
       return res.status(400).json({
         message: "All the fields are required.",
         success: false,
@@ -50,9 +50,9 @@ const addUser = async (
       });
     }
 
-    if (!validator.isLength(password, { min: 10 })) {
+    if (!validator.isLength(password, { min: 8 })) {
       return res.status(400).json({
-        message: "Password must be at least 10 characters long.",
+        message: "Password must be at least 8 characters long.",
         success: false,
       });
     }
@@ -60,20 +60,11 @@ const addUser = async (
     const existingUserEmail = await User.findOne({ email });
     if (existingUserEmail) {
       return res.status(400).json({
-        message: "Email already exists.",
+        message: "User with this email already exists.",
         success: false,
       });
     }
-    console.log(req.file);
-    const profilePicLocalpath = req.file?.path || "";
 
-    let profileUrl = null;
-    try {
-      profileUrl = await uploadOnCloudinary(profilePicLocalpath);
-    } catch (error) {
-      console.error("Error uploading image to Cloudinary:", error);
-    }
-    // console.log("Profile Local Path: ", profilePicLocalpath);
     const userRoleType = role || userRole.user;
     const newUser = new User({
       name: name,
@@ -85,6 +76,7 @@ const addUser = async (
     });
 
     await newUser.save();
+    req.session.user=newUser._id;
 
     res.status(201).json({
       message: "User created successfully.",
@@ -114,7 +106,7 @@ const loginUser = async (
 ) => {
   try {
     const { email, password } = req.body;
-
+    // console.log(req.body)
     if (!email || !password) {
       return res.status(400).json({
         success: false,
@@ -126,7 +118,7 @@ const loginUser = async (
     if (!user) {
       return res.status(400).json({
         success: false,
-        message: "Invalid email or password.",
+        message: "Invalid email",
       });
     }
 
@@ -134,7 +126,7 @@ const loginUser = async (
     if (!isMatch) {
       return res.status(400).json({
         success: false,
-        message: "Invalid email or password.",
+        message: "Invalid password.",
       });
     }
 
@@ -366,7 +358,6 @@ const googleCallBack = async (
       path: "/auth/google/callback",
       status: 500,
       message: "Authentication failed",
-      extraData: error.response ? error.response.data : error.message, // Log detailed error info
     });
   }
 };

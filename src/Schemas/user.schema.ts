@@ -9,6 +9,7 @@ export type SignUpBodyType = {
   password: string;
   mobileNo:string;
   role?:userRole;
+  profileUrl:string;
 };
 
 export type loginResponseBodyType = {

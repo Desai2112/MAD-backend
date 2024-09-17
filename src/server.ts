@@ -14,9 +14,11 @@ dotenv.config();
 const app = express();
 const port = process.env.PORT || 3000;
 const secret = process.env.Session_Secret || "abcdfekhb4efc5f4";
+
+
 app.use(express.urlencoded({ extended: true }));
 app.use(bodyParser.json());
-app.use(express.json());
+// app.use(express.json());
 app.use(express.static("public"));
 
 
@@ -53,15 +55,17 @@ app.use(cors({
 
 
 //Routes import
-import userRoutes from "./Routes/userRoutes.route";
-// import complexRoute from "./Routes/userRoutes.route";
+import authRoutes from "./Routes/authRoutes.routes";
 import paymentroute from "./configuration/stripeConfigure"
-// import bookingRoute from "./Routes/bookingroute.route"
+import complexRoutes from "./Routes/sportsComplexRoutes.routes"
+import bookingRoute from "./Routes/bookingroute.routes"
+import commonRoutes from "./Routes/common.routes"
 // import managerRoutes from "./Routes/manager.route"
 
 //Routes declaration
-app.use("/auth", userRoutes);
-// app.use("/complex",complexRoute);
-// app.use("/book",bookingRoute);
+app.use("/auth", authRoutes);
+app.use("/complex",complexRoutes);
+app.use("/booking",bookingRoute);
 app.use("/payment",paymentroute);
+app.use("/common",commonRoutes)
 // app.use("/manager",managerRoutes);
