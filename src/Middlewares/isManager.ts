@@ -16,17 +16,20 @@ const isManager = async (
         success: false,
       });
     }
-
-    if (existingUser.role === "Manager") next();
-    else {
+    // console.log(existingUser);
+    if (existingUser.role == "Manager") {
+      next();
+    } else {
       return res
         .status(401)
-        .json({ message: "You are not authorized to use this endpoint you are not a Manager.", success: false });
+        .json({
+          message:
+            "You are not authorized to use this endpoint you are not a Manager.",
+          success: false,
+        });
     }
   } else {
-    return res
-      .status(401)
-      .json({ message: "Login again.", success: false });
+    return res.status(401).json({ message: "Login again.", success: false });
   }
 };
 

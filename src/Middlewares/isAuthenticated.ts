@@ -7,6 +7,7 @@ const isAuthenticated = async (
   next: NextFunction,
 ) => {
   if (req.session && req.session.user) {
+    // console.log(req.session.user)
     next();
   } else {
     res.status(401).json({ message: "Unauthorized", success: false });

@@ -131,7 +131,7 @@ const loginUser = async (
     }
 
     req.session.user = user._id;
-
+    console.log(req.session.user)
     res.status(200).json({
       message: "Login successful.",
       userDetails: {
