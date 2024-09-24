@@ -6,11 +6,11 @@ import { User, userRole } from "../Models/user";
 import { sendWp } from "../configuration/whatsappSender";
 import { sendEmail } from "../configuration/mailconfigure";
 
-
 const bookComplex = async (req: Request, res: Response) => {
   try {
-    const { sportComplexId, sportId, startTime, endTime, bookingType } = req.body;
-    const userId = req.session.user;
+    const { sportComplexId, sportId, startTime, endTime, bookingType } =
+      req.body;
+    const userId = req.user.userId;
     if (!userId) {
       return res.status(401).json({
         message: "You must be logged in to book a sport complex",
@@ -18,16 +18,17 @@ const bookComplex = async (req: Request, res: Response) => {
       });
     }
 
-    const sportComplex = await SportComplex.findById(sportComplexId).select("manager sports");
+    const sportComplex =
+      await SportComplex.findById(sportComplexId).select("manager sports");
     const sport = await Sport.findById(sportId);
     const user = await User.findById(userId);
-    
+
     if (!sportComplex) {
       return res.status(404).json({
         message: "Sport complex not found",
         success: false,
       });
-    }else{
+    } else {
       console.log(sportComplex.manager);
     }
 
@@ -46,9 +47,7 @@ const bookComplex = async (req: Request, res: Response) => {
     }
 
     // Check if the sport is available in the complex
-    const sportAvailableInComplex = sportComplex.sports.includes(
-      sport._id
-    );
+    const sportAvailableInComplex = sportComplex.sports.includes(sport._id);
     if (!sportAvailableInComplex) {
       return res.status(400).json({
         message: "This sport is not available in the selected complex",
@@ -62,7 +61,7 @@ const bookComplex = async (req: Request, res: Response) => {
       sport: sportId,
       startTime: { $lt: endTime },
       endTime: { $gt: startTime },
-      approvalStatus:approvalStatus.approved,
+      approvalStatus: approvalStatus.approved,
     });
 
     if (conflictingBooking) {
@@ -77,7 +76,7 @@ const bookComplex = async (req: Request, res: Response) => {
       user: userId,
       sportComplex: sportComplexId,
       sport: sportId,
-      managerId:sportComplex.manager,
+      managerId: sportComplex.manager,
       startTime,
       endTime,
       bookingType,
@@ -109,12 +108,12 @@ const bookComplex = async (req: Request, res: Response) => {
 
 const showAllBookingReqests = async (req: Request, res: Response) => {
   try {
-    const mId=req.session.user;
-    if(!mId){
+    const mId = req.user.userId;
+    if (!mId) {
       return res.status(401).json({
         message: "Log in to see your booking requests.",
-        success:false
-      })
+        success: false,
+      });
     }
     const bookingRequests = await Booking.find({
       approvalStatus: "Pending",
@@ -133,12 +132,14 @@ const approveBooking = async (req: Request, res: Response) => {
     // Find the booking to approve
     const booking = await Booking.findById(bookingId);
     if (!booking) {
-      return res.status(404).json({ message: "Booking not found", success: false });
+      return res
+        .status(404)
+        .json({ message: "Booking not found", success: false });
     }
 
     // Approve the current booking
     booking.approvalStatus = approvalStatus.approved;
-    booking.status= bookingStatus.completed;
+    booking.status = bookingStatus.completed;
     await booking.save();
 
     const msg = "Your booking is confirmed";
@@ -152,19 +153,27 @@ const approveBooking = async (req: Request, res: Response) => {
         approvalStatus: "Pending",
         // Condition to find all bookings that overlap with the approved booking
         $or: [
-          { startTime: { $lt: booking.endTime }, endTime: { $gt: booking.startTime } },
+          {
+            startTime: { $lt: booking.endTime },
+            endTime: { $gt: booking.startTime },
+          },
         ],
         _id: { $ne: bookingId }, // Exclude the approved booking
       },
-      { approvalStatus: approvalStatus.rejected,
-        status:bookingStatus.cancelled,
-       }
+      {
+        approvalStatus: approvalStatus.rejected,
+        status: bookingStatus.cancelled,
+      },
     );
 
-    console.log("Booking approved successfully and overlapping requests rejected:", booking);
+    console.log(
+      "Booking approved successfully and overlapping requests rejected:",
+      booking,
+    );
 
     return res.status(200).json({
-      message: "Booking approved successfully and overlapping requests rejected",
+      message:
+        "Booking approved successfully and overlapping requests rejected",
       success: true,
     });
   } catch (error) {
@@ -175,7 +184,6 @@ const approveBooking = async (req: Request, res: Response) => {
     });
   }
 };
-
 
 const rejectBooking = async (req: Request, res: Response) => {
   try {
@@ -232,9 +240,4 @@ const rejectBooking = async (req: Request, res: Response) => {
 //   }
 // };
 
-export {
-  bookComplex,
-  showAllBookingReqests,
-  approveBooking,
-  rejectBooking,
-};
+export { bookComplex, showAllBookingReqests, approveBooking, rejectBooking };

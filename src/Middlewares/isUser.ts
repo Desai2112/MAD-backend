@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from "express";
+import jwt from "jsonwebtoken";
 import { User } from "../Models/user";
 import { GenericResponseType } from "../Schemas/genericResponse.schema";
 
@@ -7,26 +8,31 @@ const isUser = async (
   res: Response<GenericResponseType>,
   next: NextFunction,
 ) => {
-  if (req.session && req.session.user) {
-    const userId = req.session.user;
-    const existingUser = await User.findById(userId);
+  try {
+    const authHeader = req.headers.authorization;
+    const token = authHeader && authHeader.split(' ')[1];
+
+    if (!token) {
+      return res.status(401).json({ message: "Access token is missing", success: false });
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as { userId: string };
+    const existingUser = await User.findById(decoded.userId);
+
     if (!existingUser) {
-      return res.status(400).json({
-        message: "User not found",
+      return res.status(400).json({ message: "User not found", success: false });
+    }
+
+    if (existingUser.role === "User") {
+      next();
+    } else {
+      return res.status(401).json({
+        message: "You are not authorized to use this endpoint. You are not a User.",
         success: false,
       });
     }
-
-    if (existingUser.role === "User") next();
-    else {
-      return res
-        .status(401)
-        .json({ message: "You are not authorized to use this endpoint you are not a user.", success: false });
-    }
-  } else {
-    return res
-      .status(401)
-      .json({ message: "Login again.", success: false });
+  } catch (error) {
+    return res.status(401).json({ message: "Unauthorized or invalid token", success: false });
   }
 };
 

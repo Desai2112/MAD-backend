@@ -14,20 +14,20 @@ export type SignUpBodyType = {
 
 export type loginResponseBodyType = {
   message: string;
+  token:string;
   userDetails: {
     id: Schema.Types.ObjectId;
     name: string;
     email: string;
     mobileNo:string;
     role:string;
-    createdAt: Date;
-    updatedAt: Date;
   };
   success: Boolean;
 };
 
 export type SignUpResponseBodyType = {
   message: string;
+  token:string;
   userDetails: {
     id: Schema.Types.ObjectId;
     name: string;

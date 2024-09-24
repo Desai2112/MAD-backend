@@ -19,7 +19,7 @@ const addComplex = async (req: Request, res: Response) => {
       images,
     } = req.body;
     console.log(req.body);
-    const managerId = req.session.user;
+    const managerId = req.user.userId;
 
     if (
       !name ||
@@ -143,7 +143,7 @@ const findComplexebyCity = async (req: Request, res: Response) => {
 const showClientComplex = async (req: Request, res: Response) => {
   try {
     const allComplex = await SportComplex.find({
-      manager: req.session.user,
+      manager: req.user.userId,
       deleted: false,
     })
       .select("-deleted -createdAt -updatedAt")
@@ -172,7 +172,7 @@ const editComplexDetails = async (req: Request, res: Response) => {
       });
     }
     const mId = complex.manager.toString();
-    const uId = req.session.user?.toString();
+    const uId = req.user.userId?.toString();
     // console.log(mId);
     // console.log(uId);
     if (mId != uId) {
@@ -235,16 +235,18 @@ const addSportinComplex = async (req: Request, res: Response) => {
         success: false,
       });
     }
-    const complex = await SportComplex.findByIdAndUpdate({ complexId },{
-      $addToSet: { sports: sports }
-    });
+    const complex = await SportComplex.findByIdAndUpdate(
+      { complexId },
+      {
+        $addToSet: { sports: sports },
+      },
+    );
     if (!complex) {
       return res.status(400).json({
         message: "Sport already exists in this complex",
         success: false,
       });
     }
-    
   } catch (error) {
     console.log(error);
     return res.status(500).json({

@@ -27,9 +27,9 @@ const addUser = async (
 ) => {
   try {
     const { name, email, password, mobileNo, role, profileUrl } = req.body;
-     console.log(req.body);
+    console.log(req.body);
 
-    if (!name || !email || !password || !mobileNo ) {
+    if (!name || !email || !password || !mobileNo) {
       return res.status(400).json({
         message: "All the fields are required.",
         success: false,
@@ -56,8 +56,9 @@ const addUser = async (
         success: false,
       });
     }
-    if(!profileUrl){
-      let profileUrl='https://res.cloudinary.com/dgvslio7u/image/upload/v1727172566/Flexiwork/adu6cpa9dp5wdt0ahovm.png'
+    if (!profileUrl) {
+      let profileUrl =
+        "https://res.cloudinary.com/dgvslio7u/image/upload/v1727172566/Flexiwork/adu6cpa9dp5wdt0ahovm.png";
     }
     const existingUserEmail = await User.findOne({ email });
     if (existingUserEmail) {
@@ -78,10 +79,17 @@ const addUser = async (
     });
 
     await newUser.save();
-    req.session.user=newUser._id;
+     // Generate a JWT token
+     const token = jwt.sign(
+      { userId: newUser._id, role: newUser.role },
+      process.env.JWT_SECRET!,
+      { expiresIn: "24h" },
+    );
+
 
     res.status(201).json({
       message: "User created successfully.",
+      token:token,
       userDetails: {
         id: newUser._id,
         name: newUser.name,
@@ -100,7 +108,6 @@ const addUser = async (
       .json({ message: "Internal Server Error", success: false });
   }
 };
-
 const loginUser = async (
   req: Request<any, loginResponseBodyType | GenericResponseType, loginBodyType>,
   res: Response<loginResponseBodyType | GenericResponseType>,
@@ -108,7 +115,6 @@ const loginUser = async (
 ) => {
   try {
     const { email, password } = req.body;
-    // console.log(req.body)
     if (!email || !password) {
       return res.status(400).json({
         success: false,
@@ -132,18 +138,22 @@ const loginUser = async (
       });
     }
 
-    req.session.user = user._id;
-    console.log(req.session.user)
+    // Generate a JWT token
+    const token = jwt.sign(
+      { userId: user._id, role: user.role },
+      process.env.JWT_SECRET!,
+      { expiresIn: "24h" },
+    );
+
     res.status(200).json({
       message: "Login successful.",
+      token: token, // Return the token
       userDetails: {
         id: user._id,
         name: user.name,
         email: user.email,
         mobileNo: user.mobileNo,
         role: user.role,
-        createdAt: user.createdAt,
-        updatedAt: user.updatedAt,
       },
       success: true,
     });
@@ -157,7 +167,13 @@ const getDetails = async (
   res: Response<MeResponseBodyType | GenericResponseType>,
 ) => {
   try {
-    const user = await User.findById(req.session.user).select(
+    if (!req.user || !req.user.userId) {
+      return res.status(400).json({
+        message: "User not found",
+        success: false,
+      });
+    }
+    const user = await User.findById(req.user.userId).select(
       "-password -createdAt -updatedAt -deleted",
     );
     if (!user) {
@@ -200,184 +216,186 @@ const logOut = async (
   }
 };
 
-const emailVerification = async (req: Request, res: Response) => {
-  try {
-    const user = await User.findById(req.session.user).select(
-      "-password -createdAt -updatedAt -deleted",
-    );
-    if (!user) {
-      return res.status(404).json({
-        message: "User not found",
-        success: false,
-      });
-    }
-    console.log("Sending mail UserId:", user._id);
-    const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET!, {
-      expiresIn: "1h",
-    });
+// const emailVerification = async (req: Request, res: Response) => {
+//   try {
+//     if (req.user) {
+//       const user = await User.findById(req.user.userId).select(
+//         "-password -createdAt -updatedAt -deleted",
+//       );
+//     }
+//     if (!user) {
+//       return res.status(404).json({
+//         message: "User not found",
+//         success: false,
+//       });
+//     }
+//     console.log("Sending mail UserId:", user._id);
+//     const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET!, {
+//       expiresIn: "1h",
+//     });
 
-    // Create verification URL
-    const verificationUrl = `${req.protocol}://${req.get("host")}/user/verify-email?token=${token}`;
+//     // Create verification URL
+//     const verificationUrl = `${req.protocol}://${req.get("host")}/user/verify-email?token=${token}`;
 
-    // Send verification email
-    const emailSubject = "Email Verification";
-    const emailMessage = `Please click on the following link to verify your email address: ${verificationUrl}`;
-    const emailHtmlMessage = `<p>Please click on the following link to verify your email address:</p><a href="${verificationUrl}">${verificationUrl}</a>`;
+//     // Send verification email
+//     const emailSubject = "Email Verification";
+//     const emailMessage = `Please click on the following link to verify your email address: ${verificationUrl}`;
+//     const emailHtmlMessage = `<p>Please click on the following link to verify your email address:</p><a href="${verificationUrl}">${verificationUrl}</a>`;
 
-    const emailResponse = await sendEmail(
-      user.email,
-      emailSubject,
-      emailHtmlMessage,
-    );
+//     const emailResponse = await sendEmail(
+//       user.email,
+//       emailSubject,
+//       emailHtmlMessage,
+//     );
 
-    res.status(200).json({
-      message: "Verification email sent",
-      emailResponse,
-      success: true,
-    });
-  } catch (error) {
-    console.log("Error: ", error);
-    res.status(500).json({
-      message: "Internal Server Error",
-      success: false,
-    });
-  }
-};
+//     res.status(200).json({
+//       message: "Verification email sent",
+//       emailResponse,
+//       success: true,
+//     });
+//   } catch (error) {
+//     console.log("Error: ", error);
+//     res.status(500).json({
+//       message: "Internal Server Error",
+//       success: false,
+//     });
+//   }
+// };
 
-const verifyEmail = async (req: Request, res: Response) => {
-  try {
-    const token = req.query.token as string;
-    if (!token) {
-      return res.status(400).json({
-        message: "Token is required",
-        success: false,
-      });
-    }
+// const verifyEmail = async (req: Request, res: Response) => {
+//   try {
+//     const token = req.query.token as string;
+//     if (!token) {
+//       return res.status(400).json({
+//         message: "Token is required",
+//         success: false,
+//       });
+//     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as {
-      userId: mongoose.Types.ObjectId;
-    };
+//     const decoded = jwt.verify(token, process.env.JWT_SECRET!) as {
+//       userId: mongoose.Types.ObjectId;
+//     };
 
-    console.log(decoded.userId);
+//     console.log(decoded.userId);
 
-    const user = await User.findById(decoded.userId);
-    console.log(user);
+//     const user = await User.findById(decoded.userId);
+//     console.log(user);
 
-    if (!user) {
-      return res.status(400).json({
-        message: "Invalid or expired token",
-        success: false,
-      });
-    }
+//     if (!user) {
+//       return res.status(400).json({
+//         message: "Invalid or expired token",
+//         success: false,
+//       });
+//     }
 
-    if (user.emailVerified) {
-      return res.status(400).json({
-        message: "Email is already verified",
-        success: false,
-      });
-    }
+//     if (user.emailVerified) {
+//       return res.status(400).json({
+//         message: "Email is already verified",
+//         success: false,
+//       });
+//     }
 
-    user.emailVerified = true; // Ensure you have this field in your user model
-    await user.save();
+//     user.emailVerified = true; // Ensure you have this field in your user model
+//     await user.save();
 
-    res.status(200).json({
-      message: "Email verified successfully",
-      success: true,
-    });
-  } catch (error) {
-    console.error("Error during email verification:", error);
-    res.status(400).json({
-      message: "Invalid or expired token",
-      success: false,
-    });
-  }
-};
+//     res.status(200).json({
+//       message: "Email verified successfully",
+//       success: true,
+//     });
+//   } catch (error) {
+//     console.error("Error during email verification:", error);
+//     res.status(400).json({
+//       message: "Invalid or expired token",
+//       success: false,
+//     });
+//   }
+// };
 
-const continueWithGoogle = async (req: Request, res: Response) => {
-  const { role } = req.params;
-  const url = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${process.env.GOOGLE_CLIENT_ID}&redirect_uri=${process.env.GOOGLE_REDIRECT_URI}/${role}&response_type=code&scope=profile email`;
-  res.redirect(url);
-};
+// const continueWithGoogle = async (req: Request, res: Response) => {
+//   const { role } = req.params;
+//   const url = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${process.env.GOOGLE_CLIENT_ID}&redirect_uri=${process.env.GOOGLE_REDIRECT_URI}/${role}&response_type=code&scope=profile email`;
+//   res.redirect(url);
+// };
 
-const googleCallBack = async (
-  req: Request,
-  res: Response,
-  next: NextFunction,
-) => {
-  const { code } = req.query;
-  const { role } = req.params;
-  console.log(role);
-  let role1;
-  if (role == "user") {
-    role1 = userRole.user;
-  } else {
-    role1 = userRole.manager;
-  }
+// const googleCallBack = async (
+//   req: Request,
+//   res: Response,
+//   next: NextFunction,
+// ) => {
+//   const { code } = req.query;
+//   const { role } = req.params;
+//   console.log(role);
+//   let role1;
+//   if (role == "user") {
+//     role1 = userRole.user;
+//   } else {
+//     role1 = userRole.manager;
+//   }
 
-  try {
-    // Exchange authorization code for access token
-    const { data } = await axios.post("https://oauth2.googleapis.com/token", {
-      client_id: process.env.GOOGLE_CLIENT_ID,
-      client_secret: process.env.GOOGLE_CLIENT_SECRET,
-      code,
-      redirect_uri: `${process.env.GOOGLE_REDIRECT_URI}/${role}`,
-      grant_type: "authorization_code",
-    });
+//   try {
+//     // Exchange authorization code for access token
+//     const { data } = await axios.post("https://oauth2.googleapis.com/token", {
+//       client_id: process.env.GOOGLE_CLIENT_ID,
+//       client_secret: process.env.GOOGLE_CLIENT_SECRET,
+//       code,
+//       redirect_uri: `${process.env.GOOGLE_REDIRECT_URI}/${role}`,
+//       grant_type: "authorization_code",
+//     });
 
-    const { access_token, id_token } = data;
-    // console.log(data);
+//     const { access_token, id_token } = data;
+//     // console.log(data);
 
-    // Use access_token or id_token to fetch user profile
-    const { data: profile } = await axios.get(
-      "https://www.googleapis.com/oauth2/v1/userinfo",
-      {
-        headers: { Authorization: `Bearer ${access_token}` },
-      },
-    );
+//     // Use access_token or id_token to fetch user profile
+//     const { data: profile } = await axios.get(
+//       "https://www.googleapis.com/oauth2/v1/userinfo",
+//       {
+//         headers: { Authorization: `Bearer ${access_token}` },
+//       },
+//     );
 
-    // Check if user exists in the database
-    let user = await User.findOne({ email: profile.email.toLowerCase() });
-    if (!user) {
-      const randomString = crypto.randomBytes(20).toString("hex");
-      user = new User({
-        name: profile.name,
-        email: profile.email,
-        role: role1,
-        profilePic: profile.picture,
-        password: await bcrypt.hash(randomString, 10),
-        isPasswordSet: false,
-      });
-      await user.save();
-    }
-    let newuser = await User.findOne({ email: profile.email.toLowerCase() });
-    console.log(newuser);
-    // await user.find({})
-    console.log("Login Done");
-    res.redirect(`${process.env.FRONTEND_URL}/${role}`);
-  } catch (error) {
-    console.error("Error in googleCallBack:", error); // Enhanced logging
-    next({
-      path: "/auth/google/callback",
-      status: 500,
-      message: "Authentication failed",
-    });
-  }
-};
+//     // Check if user exists in the database
+//     let user = await User.findOne({ email: profile.email.toLowerCase() });
+//     if (!user) {
+//       const randomString = crypto.randomBytes(20).toString("hex");
+//       user = new User({
+//         name: profile.name,
+//         email: profile.email,
+//         role: role1,
+//         profilePic: profile.picture,
+//         password: await bcrypt.hash(randomString, 10),
+//         isPasswordSet: false,
+//       });
+//       await user.save();
+//     }
+//     let newuser = await User.findOne({ email: profile.email.toLowerCase() });
+//     console.log(newuser);
+//     // await user.find({})
+//     console.log("Login Done");
+//     res.redirect(`${process.env.FRONTEND_URL}/${role}`);
+//   } catch (error) {
+//     console.error("Error in googleCallBack:", error); // Enhanced logging
+//     next({
+//       path: "/auth/google/callback",
+//       status: 500,
+//       message: "Authentication failed",
+//     });
+//   }
+// };
 
-const tempUpload = async (req: Request, res: Response) => {
-  console.log(req.file);
-  const profilePicLocalpath = req.file?.path || "";
-  console.log(profilePicLocalpath);
-  let profileUrl = null;
-  try {
-    profileUrl = await uploadOnCloudinary(profilePicLocalpath);
-  } catch (error) {
-    console.error("Error uploading image to Cloudinary:", error);
-  }
-  console.log("Profile Url: ", profileUrl);
-  res.send("Image uploading ");
-  console.log("Done");
-};
+// const tempUpload = async (req: Request, res: Response) => {
+//   console.log(req.file);
+//   const profilePicLocalpath = req.file?.path || "";
+//   console.log(profilePicLocalpath);
+//   let profileUrl = null;
+//   try {
+//     profileUrl = await uploadOnCloudinary(profilePicLocalpath);
+//   } catch (error) {
+//     console.error("Error uploading image to Cloudinary:", error);
+//   }
+//   console.log("Profile Url: ", profileUrl);
+//   res.send("Image uploading ");
+//   console.log("Done");
+// };
 const rememberMe = async (req: Request, res: Response) => {};
 
 export {
@@ -385,9 +403,8 @@ export {
   loginUser,
   getDetails,
   logOut,
-  emailVerification,
-  verifyEmail,
-  continueWithGoogle,
-  googleCallBack,
-  tempUpload,
+  // emailVerification,
+  // verifyEmail,
+  // continueWithGoogle,
+  // googleCallBack,
 };
