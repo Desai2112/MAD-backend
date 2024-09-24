@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import { Sport } from "../Models/sports";
 import { SportComplex } from "../Models/sportComplexs";
-import { Booking } from "../Models/booking";
+import { approvalStatus, Booking, bookingStatus } from "../Models/booking";
 import { User, userRole } from "../Models/user";
 import { sendWp } from "../configuration/whatsappSender";
 import { sendEmail } from "../configuration/mailconfigure";
@@ -18,15 +18,17 @@ const bookComplex = async (req: Request, res: Response) => {
       });
     }
 
-    const sportComplex = await SportComplex.findById(sportComplexId);
+    const sportComplex = await SportComplex.findById(sportComplexId).select("manager sports");
     const sport = await Sport.findById(sportId);
     const user = await User.findById(userId);
-
+    
     if (!sportComplex) {
       return res.status(404).json({
         message: "Sport complex not found",
         success: false,
       });
+    }else{
+      console.log(sportComplex.manager);
     }
 
     if (!sport) {
@@ -44,7 +46,9 @@ const bookComplex = async (req: Request, res: Response) => {
     }
 
     // Check if the sport is available in the complex
-    const sportAvailableInComplex = sportComplex.sports.includes(sportId);
+    const sportAvailableInComplex = sportComplex.sports.includes(
+      sport._id
+    );
     if (!sportAvailableInComplex) {
       return res.status(400).json({
         message: "This sport is not available in the selected complex",
@@ -58,6 +62,7 @@ const bookComplex = async (req: Request, res: Response) => {
       sport: sportId,
       startTime: { $lt: endTime },
       endTime: { $gt: startTime },
+      approvalStatus:approvalStatus.approved,
     });
 
     if (conflictingBooking) {
@@ -72,9 +77,10 @@ const bookComplex = async (req: Request, res: Response) => {
       user: userId,
       sportComplex: sportComplexId,
       sport: sportId,
+      managerId:sportComplex.manager,
       startTime,
       endTime,
-      bookingType, // Include bookingType if needed
+      bookingType,
     });
 
     await booking.save();
@@ -103,9 +109,16 @@ const bookComplex = async (req: Request, res: Response) => {
 
 const showAllBookingReqests = async (req: Request, res: Response) => {
   try {
+    const mId=req.session.user;
+    if(!mId){
+      return res.status(401).json({
+        message: "Log in to see your booking requests.",
+        success:false
+      })
+    }
     const bookingRequests = await Booking.find({
-      approvalStatus: "pending",
-    }).populate("user sportComplex sport");
+      approvalStatus: "Pending",
+    });
     res.status(200).json({ bookingRequests, success: true });
   } catch (error) {
     console.error("Error fetching booking requests:", error);
@@ -116,26 +129,53 @@ const showAllBookingReqests = async (req: Request, res: Response) => {
 const approveBooking = async (req: Request, res: Response) => {
   try {
     const { bookingId } = req.params;
-    const booking = await Booking.findByIdAndUpdate(
-      bookingId,
-      { approvalStatus: "approved" },
-      { new: true },
-    );
-    const msg = "your booking is conforimed";
-    sendWp(msg);
+
+    // Find the booking to approve
+    const booking = await Booking.findById(bookingId);
     if (!booking) {
-      return res
-        .status(403)
-        .json({ message: "Booking not found", success: false });
+      return res.status(404).json({ message: "Booking not found", success: false });
     }
 
-    console.log("Booking approved successfully:", booking);
-    return booking;
+    // Approve the current booking
+    booking.approvalStatus = approvalStatus.approved;
+    booking.status= bookingStatus.completed;
+    await booking.save();
+
+    const msg = "Your booking is confirmed";
+    sendWp(msg);
+
+    // Reject all other pending bookings that overlap with the approved booking's time slot
+    await Booking.updateMany(
+      {
+        sportComplex: booking.sportComplex,
+        sport: booking.sport,
+        approvalStatus: "Pending",
+        // Condition to find all bookings that overlap with the approved booking
+        $or: [
+          { startTime: { $lt: booking.endTime }, endTime: { $gt: booking.startTime } },
+        ],
+        _id: { $ne: bookingId }, // Exclude the approved booking
+      },
+      { approvalStatus: approvalStatus.rejected,
+        status:bookingStatus.cancelled,
+       }
+    );
+
+    console.log("Booking approved successfully and overlapping requests rejected:", booking);
+
+    return res.status(200).json({
+      message: "Booking approved successfully and overlapping requests rejected",
+      success: true,
+    });
   } catch (error) {
     console.error("Error approving booking:", error);
-    throw error;
+    return res.status(500).json({
+      message: "Internal server error. Try again later.",
+      success: false,
+    });
   }
 };
+
 
 const rejectBooking = async (req: Request, res: Response) => {
   try {
@@ -160,42 +200,41 @@ const rejectBooking = async (req: Request, res: Response) => {
   }
 };
 
-const seeAvailability = async (req: Request, res: Response) => {
-  const { sportComplexId, startTime, endTime } = req.body;
+// const seeAvailability = async (req: Request, res: Response) => {
+//   const { sportComplexId, startTime, endTime } = req.body;
 
-  try {
-    const bookings = await Booking.find({
-      sportComplex: sportComplexId,
-      $or: [
-        {
-          startTime: { $lte: new Date(startTime) },
-          endTime: { $gte: new Date(startTime) },
-        },
-        {
-          startTime: { $lte: new Date(endTime) },
-          endTime: { $gte: new Date(endTime) },
-        },
-        {
-          startTime: { $gte: new Date(startTime) },
-          endTime: { $lte: new Date(endTime) },
-        },
-      ],
-    });
+//   try {
+//     const bookings = await Booking.find({
+//       sportComplex: sportComplexId,
+//       $or: [
+//         {
+//           startTime: { $lte: new Date(startTime) },
+//           endTime: { $gte: new Date(startTime) },
+//         },
+//         {
+//           startTime: { $lte: new Date(endTime) },
+//           endTime: { $gte: new Date(endTime) },
+//         },
+//         {
+//           startTime: { $gte: new Date(startTime) },
+//           endTime: { $lte: new Date(endTime) },
+//         },
+//       ],
+//     });
 
-    if (bookings.length > 0) {
-      res.json({ available: false, bookings });
-    } else {
-      res.json({ available: true });
-    }
-  } catch (error) {
-    res.status(500).json({ message: "Error fetching data.", success: false });
-  }
-};
+//     if (bookings.length > 0) {
+//       res.json({ available: false, bookings });
+//     } else {
+//       res.json({ available: true });
+//     }
+//   } catch (error) {
+//     res.status(500).json({ message: "Error fetching data.", success: false });
+//   }
+// };
 
 export {
   bookComplex,
   showAllBookingReqests,
   approveBooking,
   rejectBooking,
-  seeAvailability,
 };

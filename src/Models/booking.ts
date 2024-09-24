@@ -21,6 +21,7 @@ export type IBooking = {
   user: Schema.Types.ObjectId;
   sportComplex: Schema.Types.ObjectId;
   sport: Schema.Types.ObjectId;
+  managerId:Schema.Types.ObjectId;
   startTime: Date;
   endTime: Date;
   status: bookingStatus; 
@@ -50,6 +51,11 @@ export const bookingSchema: Schema = new Schema(
     sport: {
       type: Schema.Types.ObjectId,
       ref: "Sport",
+      required: true,
+    },
+    managerId: {
+      type: Schema.Types.ObjectId,
+      ref:"User",
       required: true,
     },
     startTime: {

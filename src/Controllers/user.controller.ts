@@ -29,7 +29,7 @@ const addUser = async (
     const { name, email, password, mobileNo, role, profileUrl } = req.body;
      console.log(req.body);
 
-    if (!name || !email || !password || !mobileNo || !profileUrl) {
+    if (!name || !email || !password || !mobileNo ) {
       return res.status(400).json({
         message: "All the fields are required.",
         success: false,
@@ -56,7 +56,9 @@ const addUser = async (
         success: false,
       });
     }
-
+    if(!profileUrl){
+      let profileUrl='https://res.cloudinary.com/dgvslio7u/image/upload/v1727172566/Flexiwork/adu6cpa9dp5wdt0ahovm.png'
+    }
     const existingUserEmail = await User.findOne({ email });
     if (existingUserEmail) {
       return res.status(400).json({
