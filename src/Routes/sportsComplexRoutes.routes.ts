@@ -7,7 +7,7 @@ const router = Router();
 
 router.route("/add").post(addComplex);
 router.route("/detail/:complexId").get(getComplexDetails);
-router.route("/all").get(isAuthenticated,showAllComplex);
+router.route("/all").get(showAllComplex);
 router.route("/city/:city").get(findComplexebyCity);
 router.route("/sport/:sportName").get(findComplexbySports);
 router.route("/client").get(isAuthenticated,isManager,showClientComplex);

@@ -19,7 +19,8 @@ const addComplex = async (req: Request, res: Response) => {
       images,
     } = req.body;
     console.log(req.body);
-    const managerId = req.user.userId;
+      const managerId = req.user.userId;
+
 
     if (
       !name ||
@@ -142,6 +143,12 @@ const findComplexebyCity = async (req: Request, res: Response) => {
 
 const showClientComplex = async (req: Request, res: Response) => {
   try {
+    if(!req.user){
+      return res.status(403).json({
+        message: "You are not authorized to view this page",
+        success: false,
+      });
+    }
     const allComplex = await SportComplex.find({
       manager: req.user.userId,
       deleted: false,
