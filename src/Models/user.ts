@@ -62,7 +62,6 @@ const userSchema: Schema<IUserModel> = new Schema(
     },
     profilePic: {
       type: String,
-      required: true,
     },
     googleId: {
       type: String,
