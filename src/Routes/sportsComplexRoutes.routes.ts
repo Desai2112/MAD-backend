@@ -5,7 +5,7 @@ import isManager from "../Middlewares/isManager";
 
 const router = Router();
 
-router.route("/add").post(addComplex);
+router.route("/add").post(isAuthenticated,addComplex);
 router.route("/detail/:complexId").get(getComplexDetails);
 router.route("/all").get(showAllComplex);
 router.route("/city/:city").get(findComplexebyCity);
