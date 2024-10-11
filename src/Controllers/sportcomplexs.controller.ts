@@ -80,6 +80,7 @@ const addComplex = async (req: Request, res: Response) => {
     return res.status(201).json({
       message: "Complex created successfully",
       success: true,
+      complex
     });
   } catch (error) {
     console.log(error);
