@@ -106,7 +106,8 @@ const showAllComplex = async (req: Request, res: Response) => {
   try {
     const allComplex = await SportComplex.find({ deleted: false })
       .select("-deleted -createdAt -updatedAt")
-      .populate("sports", "name _id");
+      .populate("sports", "name _id")
+      .populate("manager", "name email phone");
     res.status(200).json({ allComplex, success: true });
   } catch (error) {
     console.error("Error getting all complex:", error);
