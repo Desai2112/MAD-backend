@@ -8,6 +8,12 @@ import { sendEmail } from "../configuration/mailconfigure";
 
 const bookComplex = async (req: Request, res: Response) => {
   try {
+    if (!req.user) {
+      return res.status(401).json({
+        message: "You must be logged in to book a sport complex",
+        success: false,
+      });
+    }
     const { sportComplexId, sportId, startTime, endTime, bookingType } =
       req.body;
     const userId = req.user.userId;
@@ -108,7 +114,13 @@ const bookComplex = async (req: Request, res: Response) => {
 
 const showAllBookingReqests = async (req: Request, res: Response) => {
   try {
-    
+    if (!req.user) {
+      return res.status(401).json({
+        message: "You must be logged in to see your booking requests.",
+        success: false,
+      });
+    }
+
     const mId = req.user.userId;
     if (!mId) {
       return res.status(401).json({
@@ -118,6 +130,7 @@ const showAllBookingReqests = async (req: Request, res: Response) => {
     }
     const bookingRequests = await Booking.find({
       approvalStatus: "Pending",
+      managerId: mId,
     });
     res.status(200).json({ bookingRequests, success: true });
   } catch (error) {
@@ -189,56 +202,74 @@ const approveBooking = async (req: Request, res: Response) => {
 const rejectBooking = async (req: Request, res: Response) => {
   try {
     const { bookingId } = req.params;
-    const msg = "your booking is rejected";
-    sendWp(msg);
-    const booking = await Booking.findByIdAndUpdate(
-      bookingId,
-      { approvalStatus: "rejected" },
-      { new: true },
-    );
 
+    // Find the booking to reject
+    const booking =
+      await Booking.findById(bookingId).populate("sportComplex", "manager");
     if (!booking) {
-      throw new Error("Booking not found");
+      return res
+        .status(404)
+        .json({ message: "Booking not found", success: false });
     }
-
+    // Check if the booking is already approved or rejected
+    if (
+      booking.approvalStatus === approvalStatus.approved ||
+      booking.approvalStatus === approvalStatus.rejected
+    ) {
+      return res.status(400).json({
+        message: "Booking already processed",
+        success: false,
+      });
+    }
+    // Reject the booking
+    booking.approvalStatus = approvalStatus.rejected;
+    booking.status = bookingStatus.cancelled;
+    await booking.save();
     console.log("Booking rejected successfully:", booking);
-    return booking;
+    return res.status(200).json({
+      message: "Booking rejected successfully",
+      success: true,
+    });
   } catch (error) {
     console.error("Error rejecting booking:", error);
-    throw error;
+    return res.status(500).json({
+      message: "Internal server error. Try again later.",
+      success: false,
+    });
   }
 };
 
-// const seeAvailability = async (req: Request, res: Response) => {
-//   const { sportComplexId, startTime, endTime } = req.body;
+const showPlayerBookings = async (req: Request, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({
+        message: "You must be logged in to see your bookings",
+        success: false,
+      });
+    }
+    const userId = req.user.userId;
+    const bookings = await Booking.find({ user: userId })
+      .populate("sportComplex", "name")
+      .populate("sport", "name")
+      .exec();
+    return res.status(200).json({
+      message: "Bookings fetched successfully",
+      bookings,
+      success: true,
+    });
+  } catch (error) {
+    console.error("Error fetching bookings:", error);
+    return res.status(500).json({
+      message: "Internal server error. Try again later.",
+      success: false,
+    });
+  }
+};
 
-//   try {
-//     const bookings = await Booking.find({
-//       sportComplex: sportComplexId,
-//       $or: [
-//         {
-//           startTime: { $lte: new Date(startTime) },
-//           endTime: { $gte: new Date(startTime) },
-//         },
-//         {
-//           startTime: { $lte: new Date(endTime) },
-//           endTime: { $gte: new Date(endTime) },
-//         },
-//         {
-//           startTime: { $gte: new Date(startTime) },
-//           endTime: { $lte: new Date(endTime) },
-//         },
-//       ],
-//     });
-
-//     if (bookings.length > 0) {
-//       res.json({ available: false, bookings });
-//     } else {
-//       res.json({ available: true });
-//     }
-//   } catch (error) {
-//     res.status(500).json({ message: "Error fetching data.", success: false });
-//   }
-// };
-
-export { bookComplex, showAllBookingReqests, approveBooking, rejectBooking };
+export {
+  bookComplex,
+  showAllBookingReqests,
+  approveBooking,
+  rejectBooking,
+  showPlayerBookings,
+};
