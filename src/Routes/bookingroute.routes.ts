@@ -8,7 +8,7 @@ const router=Router();
 
 router.route("/add").post(isAuthenticated,isUser,bookComplex);
 router.route("/requests").get(isAuthenticated,isManager,showAllBookingReqests);
-router.route("/player/requests").get(isAuthenticated,isManager,showPlayerBookings);
+router.route("/player/requests").get(isAuthenticated,isUser,showPlayerBookings);
 router.route("/accept/:bookingId").put(isAuthenticated,isManager,approveBooking)
 router.route("/reject/:bookingId").put(isAuthenticated,isManager,rejectBooking)
 
