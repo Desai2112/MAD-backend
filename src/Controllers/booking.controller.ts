@@ -129,15 +129,24 @@ const showAllBookingReqests = async (req: Request, res: Response) => {
       });
     }
     const bookingRequests = await Booking.find({
-      approvalStatus: "Pending",
       managerId: mId,
+      // approvalStatus: "Pending",
+    })
+      .populate("user", "name email")
+      .populate("sportComplex", "name")
+      .populate("sport", "name");
+
+    res.status(200).json({
+      message: "Bookings fetched successfully.",
+      bookingRequests,
+      success: true,
     });
-    res.status(200).json({ bookingRequests, success: true });
   } catch (error) {
     console.error("Error fetching booking requests:", error);
     res.status(500).json({ message: "Internal server error", success: false });
   }
 };
+
 
 const approveBooking = async (req: Request, res: Response) => {
   try {
